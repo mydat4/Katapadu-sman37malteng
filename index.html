@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katalog Pusat Perangkat Pembelajaran — SMA Negeri 37 Maluku Tengah</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- SheetJS (XLSX Library) untuk Ekspor Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        ocean: { 800: '#075985', 900: '#0369a1', 950: '#0c4a6e' },
+                        navy: { 800: '#1E293B', 900: '#0B192C', 950: '#050B14' },
+                        gold: { 400: '#FBBF24', 500: '#F59E0B', 600: '#D97706' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-header {
+            background: rgba(11, 25, 44, 0.88);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+        .abstract-bg {
+            background-color: #0B192C;
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(14, 116, 144, 0.4) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(3, 105, 161, 0.35) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(56, 189, 248, 0.15) 0px, transparent 60%);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-gold-500 selection:text-white"
+      x-data="catalogApp()">
+
+    <!-- ================= STICKY NAVIGATION HEADER ================= -->
+    <header class="sticky top-0 z-40 glass-header border-b border-sky-900/50 text-white shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 sm:h-20">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-sky-500 via-sky-400 to-gold-400 flex items-center justify-center text-navy-950 font-extrabold text-lg shadow-lg">
+                        37
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-sm sm:text-base tracking-tight text-white">SMAN 37 MALUKU TENGAH</span>
+                            <span class="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                                KURIKULUM MERDEKA
+                            </span>
+                        </div>
+                        <p class="text-xs text-sky-200/70 hidden sm:block">Portal Supervisi & Repositori Perangkat Ajar</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- Status Sinkronisasi Sheets -->
+                    <div class="hidden md:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-sky-950/60 border border-sky-800/60">
+                        <span :class="isSyncing ? 'bg-amber-400 animate-ping' : (isConnectedToSheets ? 'bg-emerald-400' : 'bg-slate-400')" class="w-2 h-2 rounded-full"></span>
+                        <span class="text-sky-200" x-text="isSyncing ? 'Menyinkronkan...' : (isConnectedToSheets ? 'Terhubung Google Sheets' : 'Mode Lokal')"></span>
+                    </div>
+
+                    <button @click="openUploadModal = true" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500 text-white text-xs font-bold shadow-md transition">
+                        <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                        <span>Unggah Guru</span>
+                    </button>
+
+                    <template x-if="!isAdminLoggedIn">
+                        <button @click="openLoginModal = true" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-navy-900/80 hover:bg-navy-900 text-xs font-semibold text-gold-400 border border-sky-800/60 transition shadow-sm">
+                            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                            <span>Login Admin</span>
+                        </button>
+                    </template>
+                    <template x-if="isAdminLoggedIn">
+                        <button @click="openAdminDashboard = true" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md transition animate-pulse">
+                            <i data-lucide="settings" class="w-4 h-4"></i>
+                            <span>Panel Admin (Aktif)</span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= HERO SECTION & MENU RPP / MPI ================= -->
+    <section class="relative abstract-bg text-white overflow-hidden pb-16 pt-10 sm:pt-16 sm:pb-22 border-b border-sky-900/40">
+        <div class="absolute top-10 left-1/4 w-72 h-72 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-5 right-10 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sky-950/80 border border-sky-500/30 text-sky-300 text-xs font-semibold mb-6 shadow-inner">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-gold-400"></i>
+                <span>Integrasi Deep Learning & Pembelajaran Berdiferensiasi</span>
+            </div>
+
+            <h1 class="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-tight">
+                Katalog Pusat Perangkat Pembelajaran & <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-cyan-200 to-gold-400">Media Interaktif</span>
+            </h1>
+
+            <p class="mt-4 text-sm sm:text-lg text-sky-100/80 max-w-2xl mx-auto font-normal">
+                SMA Negeri 37 Maluku Tengah — Kurikulum Merdeka & Pendekatan Deep Learning. Akses terpadu untuk Kepala Sekolah, Pengawas, dan Dewan Guru.
+            </p>
+
+            <!-- Menu Khusus Link RPP & MPI -->
+            <div class="mt-8 max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <a href="https://s.id/PENGUMPULANRPPTERBARU" target="_blank" 
+                   class="group relative flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-sky-900/80 to-sky-950/90 border border-sky-500/40 hover:border-sky-400 shadow-xl hover:-translate-y-0.5 transition-all duration-300">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-300 flex items-center justify-center font-bold group-hover:bg-sky-500 group-hover:text-white transition">
+                            <i data-lucide="file-text" class="w-5 h-5"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-xs text-sky-300 font-semibold uppercase tracking-wider">Akses Langsung</p>
+                            <p class="text-sm font-bold text-white">Link Pengumpulan RPP Terbaru</p>
+                        </div>
+                    </div>
+                    <i data-lucide="external-link" class="w-4 h-4 text-sky-400 group-hover:translate-x-0.5 transition"></i>
+                </a>
+
+                <a href="https://s.id/LINKPENGUMPULANMPI" target="_blank" 
+                   class="group relative flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-sky-900/80 to-sky-950/90 border border-cyan-500/40 hover:border-cyan-400 shadow-xl hover:-translate-y-0.5 transition-all duration-300">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center font-bold group-hover:bg-cyan-500 group-hover:text-white transition">
+                            <i data-lucide="monitor-play" class="w-5 h-5"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-xs text-cyan-300 font-semibold uppercase tracking-wider">Akses Langsung</p>
+                            <p class="text-sm font-bold text-white">Link Pengumpulan MPI</p>
+                        </div>
+                    </div>
+                    <i data-lucide="external-link" class="w-4 h-4 text-cyan-400 group-hover:translate-x-0.5 transition"></i>
+                </a>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="mt-8 max-w-2xl mx-auto">
+                <div class="relative flex items-center">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i data-lucide="search" class="w-5 h-5 text-slate-400"></i>
+                    </div>
+                    <input type="text" 
+                           x-model="searchQuery" 
+                           placeholder="Cari mata pelajaran, topik materi, atau nama guru..." 
+                           class="w-full pl-12 pr-24 py-4 rounded-2xl bg-white text-slate-900 placeholder-slate-400 text-sm sm:text-base font-medium shadow-2xl focus:outline-none focus:ring-4 focus:ring-sky-400/40 transition">
+                    <button x-show="searchQuery.length > 0" @click="searchQuery = ''" class="absolute right-3 px-3 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg">Reset</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= MAIN CATALOG & FILTER WORKSPACE ================= -->
+    <main id="katalog-utama" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <aside class="hidden lg:block w-72 shrink-0">
+                <div class="sticky top-24 bg-white rounded-3xl border border-sky-100 p-6 shadow-sm space-y-7">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <h3 class="font-bold text-navy-900 flex items-center gap-2">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-sky-600"></i> Filter Perangkat
+                        </h3>
+                        <button @click="resetFilters()" class="text-xs font-semibold text-sky-700 hover:underline">Reset</button>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Jenjang & Fase</h4>
+                        <div class="space-y-1.5">
+                            <template x-for="grade in grades" :key="grade">
+                                <button @click="selectedGrade = grade"
+                                        :class="selectedGrade === grade ? 'bg-sky-900 text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'"
+                                        class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition text-left">
+                                    <span x-text="grade"></span>
+                                    <span class="text-xs opacity-75" x-text="countByGrade(grade)"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Jenis Perangkat</h4>
+                        <div class="space-y-1.5">
+                            <template x-for="cat in categories" :key="cat">
+                                <button @click="selectedCategory = cat"
+                                        :class="selectedCategory === cat ? 'bg-sky-50 text-sky-800 border border-sky-200 font-semibold' : 'text-slate-600 hover:bg-slate-100 border border-transparent'"
+                                        class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs leading-snug transition text-left">
+                                    <span x-text="cat"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="flex-1">
+                <div class="flex items-center justify-between mb-6 bg-white p-4 rounded-2xl border border-sky-100 shadow-sm">
+                    <div class="text-sm text-slate-600 flex items-center gap-2">
+                        <span>Menampilkan <strong class="text-navy-900" x-text="filteredItems.length"></strong> perangkat tervalidasi</span>
+                        <button @click="fetchFromSheets()" class="p-1 hover:bg-slate-100 rounded-lg text-sky-600" title="Muat ulang dari Google Sheets">
+                            <i data-lucide="refresh-cw" :class="isSyncing ? 'animate-spin' : ''" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pesan Kosong jika Belum Ada Perangkat -->
+                <template x-if="filteredItems.length === 0">
+                    <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center shadow-sm">
+                        <div class="w-12 h-12 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="folder-open" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-navy-900">Belum ada perangkat pembelajaran</h3>
+                        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Silakan gunakan tombol "Unggah Guru" di atas untuk menambahkan perangkat baru atau sinkronkan dengan Google Sheets.</p>
+                    </div>
+                </template>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5" x-show="filteredItems.length > 0">
+                    <template x-for="item in filteredItems" :key="item.id">
+                        <article class="group bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm hover:shadow-xl transition flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between gap-2 mb-3.5">
+                                    <span class="px-3 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200" x-text="item.subject"></span>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold" x-text="item.grade"></span>
+                                </div>
+                                <h3 class="text-base sm:text-lg font-bold text-navy-900 group-hover:text-sky-700 transition" x-text="item.title"></h3>
+                                <p class="text-xs text-slate-500 mt-2 line-clamp-2" x-text="item.description"></p>
+                            </div>
+                            <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                                <div class="text-xs">
+                                    <p class="font-bold text-slate-800" x-text="item.teacher"></p>
+                                    <p class="text-slate-400 text-[11px]" x-text="item.updatedAt"></p>
+                                </div>
+                                <a :href="item.fileUrl" target="_blank" class="px-4 py-2 bg-sky-900 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-sky-800 flex items-center gap-1.5">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5 text-gold-400"></i> Akses File
+                                </a>
+                            </div>
+                        </article>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: UNGGAH GURU ================= -->
+    <div x-show="openUploadModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm" style="display: none;">
+        <div @click.away="openUploadModal = false" class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="font-bold text-navy-900 text-base">Unggah Perangkat ke Google Sheets</h3>
+                <button @click="openUploadModal = false"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form @submit.prevent="submitUploadForm()" class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Guru & Gelar</label>
+                    <input type="text" x-model="form.teacher" required placeholder="Contoh: Mohammad Nasirullah, S.Pd." class="w-full rounded-xl border p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran</label>
+                    <select x-model="form.subject" required class="w-full rounded-xl border p-2.5 text-sm bg-white">
+                        <option value="">-- Pilih Mata Pelajaran --</option>
+                        <template x-for="subj in subjectsList" :key="subj">
+                            <option :value="subj" x-text="subj"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Jenjang / Kelas</label>
+                    <select x-model="form.grade" required class="w-full rounded-xl border p-2.5 text-sm bg-white">
+                        <option value="Kelas X (Fase E)">Kelas X (Fase E)</option>
+                        <option value="Kelas XI (Fase F)">Kelas XI (Fase F)</option>
+                        <option value="Kelas XII (Fase F)">Kelas XII (Fase F)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kategori Perangkat</label>
+                    <select x-model="form.category" required class="w-full rounded-xl border p-2.5 text-sm bg-white">
+                        <option value="Modul Ajar / RPP">Modul Ajar / RPP</option>
+                        <option value="Media Pembelajaran Interaktif">Media Pembelajaran Interaktif</option>
+                        <option value="LKPD (Lembar Kerja Peserta Didik)">LKPD (Lembar Kerja Peserta Didik)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Judul Perangkat</label>
+                    <input type="text" x-model="form.title" required placeholder="Judul Modul" class="w-full rounded-xl border p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Link Google Drive</label>
+                    <input type="url" x-model="form.fileUrl" required placeholder="https://drive.google.com/..." class="w-full rounded-xl border p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi Singkat</label>
+                    <textarea x-model="form.description" required rows="2" class="w-full rounded-xl border p-2.5 text-sm"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="openUploadModal = false" class="px-4 py-2 border rounded-xl text-xs font-bold">Batal</button>
+                    <button type="submit" :disabled="isSubmitting" class="px-5 py-2 bg-sky-900 text-white rounded-xl text-xs font-bold" x-text="isSubmitting ? 'Mengirim...' : 'Kirim ke Sheets'"></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: LOGIN ADMIN ================= -->
+    <div x-show="openLoginModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm" style="display: none;">
+        <div @click.away="openLoginModal = false" class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="font-bold text-navy-900 text-base">Login Administrator</h3>
+                <button @click="openLoginModal = false"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form @submit.prevent="handleAdminLogin()" class="space-y-4 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Username Admin</label>
+                    <input type="text" x-model="loginForm.username" required placeholder="****" class="w-full rounded-xl border p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                    <input type="password" x-model="loginForm.password" required placeholder="********" class="w-full rounded-xl border p-2.5 text-sm">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-sky-900 text-white rounded-xl text-xs font-bold">Masuk Panel Admin</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: PANEL ADMIN DENGAN VERIFIKASI & MAPEL ================= -->
+    <div x-show="openAdminDashboard" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm" style="display: none;">
+        <div @click.away="openAdminDashboard = false" class="bg-white rounded-3xl max-w-6xl w-full max-h-[88vh] flex flex-col shadow-2xl border overflow-hidden">
+            <div class="bg-navy-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-lg">Panel Kontrol Administrator</h3>
+                    <span class="text-xs bg-sky-500/20 text-sky-300 px-2.5 py-0.5 rounded-full border border-sky-400/30">Google Sheets Connected</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="logoutAdmin()" class="px-3 py-1.5 bg-rose-600/20 text-rose-300 rounded-lg text-xs font-semibold">Keluar</button>
+                    <button @click="openAdminDashboard = false"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <!-- Bagian Manajemen Mata Pelajaran -->
+                <div class="bg-sky-50 p-4 rounded-2xl border border-sky-200">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-sky-900 mb-2">Kelola Daftar Mata Pelajaran</h4>
+                    <div class="flex flex-col sm:flex-row gap-2 mb-3">
+                        <input type="text" x-model="newSubjectName" placeholder="Nama Mata Pelajaran Baru (Contoh: Kimia)" class="flex-1 rounded-xl border border-sky-300 px-3 py-2 text-xs bg-white">
+                        <button @click="addSubject()" class="px-4 py-2 bg-sky-900 hover:bg-sky-800 text-white text-xs font-bold rounded-xl shadow-sm">
+                            + Tambah Mapel
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="subj in subjectsList" :key="subj">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-sky-200 text-xs font-semibold text-sky-900 shadow-sm">
+                                <span x-text="subj"></span>
+                                <button @click="removeSubject(subj)" class="text-rose-500 hover:text-rose-700 font-bold ml-1" title="Hapus Mapel">×</button>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Toolbar Tabel & Ekspor -->
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div>
+                        <p class="text-xs font-bold text-navy-900">Total Perangkat: <span class="text-sky-700" x-text="items.length"></span> | <span class="text-amber-600">Menunggu Review: <span x-text="items.filter(i => i.status === 'Menunggu Review').length"></span></span></p>
+                        <p class="text-[11px] text-slate-500">Setujui unggahan agar tampil di halaman depan atau unduh rekap ke Excel (.xlsx)</p>
+                    </div>
+                    <button @click="exportToExcel()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>Ekspor ke Excel (.xlsx)</span>
+                    </button>
+                </div>
+
+                <!-- Tabel Verifikasi -->
+                <div class="border rounded-2xl overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs font-bold border-b">
+                                <th class="p-3">Judul & Mapel</th>
+                                <th class="p-3">Jenjang</th>
+                                <th class="p-3">Penyusun</th>
+                                <th class="p-3">Status Verifikasi</th>
+                                <th class="p-3 text-center">Aksi (Validasi / Hapus)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y text-xs">
+                            <template x-for="item in items" :key="item.id">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3"><strong class="block text-navy-900" x-text="item.title"></strong><span class="text-slate-400 text-[11px]" x-text="item.subject"></span></td>
+                                    <td class="p-3 text-slate-600" x-text="item.grade"></td>
+                                    <td class="p-3 text-slate-600" x-text="item.teacher"></td>
+                                    <td class="p-3">
+                                        <button @click="toggleStatus(item)" 
+                                                :class="item.status === 'Tervalidasi' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'"
+                                                class="px-2.5 py-1 rounded-full font-bold text-[11px] border inline-flex items-center gap-1 transition shadow-sm"
+                                                title="Klik untuk ubah status verifikasi">
+                                            <i :data-lucide="item.status === 'Tervalidasi' ? 'check-circle-2' : 'clock'" class="w-3.5 h-3.5"></i>
+                                            <span x-text="item.status || 'Tervalidasi'"></span>
+                                        </button>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button @click="toggleStatus(item)" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold transition" x-text="item.status === 'Tervalidasi' ? 'Batalkan' : 'Setujui'"></button>
+                                            <button @click="deleteItem(item.id)" class="px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-lg font-semibold hover:bg-rose-100">Hapus</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div x-show="toastMessage !== ''" x-transition class="fixed bottom-5 right-5 z-50 bg-navy-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-sky-800 text-xs font-semibold" style="display: none;">
+        <span x-text="toastMessage"></span>
+    </div>
+
+    <!-- ================= APPS SCRIPT INTEGRATION & APP LOGIC ================= -->
+    <script>
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuonyzqxd64egRZhtd1_vusdO6TtC-rlpmWgEApT0kh9uA4UyKRXGWthd9Hod_H2OX/exec';
+
+        function catalogApp() {
+            return {
+                searchQuery: '',
+                selectedGrade: 'Semua Kelas',
+                selectedCategory: 'Semua Kategori',
+                openUploadModal: false,
+                openLoginModal: false,
+                openAdminDashboard: false,
+                isAdminLoggedIn: false,
+                isSyncing: false,
+                isConnectedToSheets: false,
+                isSubmitting: false,
+                toastMessage: '',
+                newSubjectName: '',
+
+                loginForm: { username: '', password: '' },
+                grades: ['Semua Kelas', 'Kelas X (Fase E)', 'Kelas XI (Fase F)', 'Kelas XII (Fase F)'],
+                categories: ['Semua Kategori', 'Modul Ajar / RPP', 'Media Pembelajaran Interaktif', 'LKPD (Lembar Kerja Peserta Didik)'],
+
+                subjectsList: ['Biologi', 'Matematika', 'Bahasa Indonesia', 'Sejarah', 'Fisika', 'Kimia', 'Ekonomi'],
+
+                form: {
+                    teacher: '',
+                    subject: '',
+                    grade: 'Kelas X (Fase E)',
+                    category: 'Modul Ajar / RPP',
+                    title: '',
+                    fileUrl: '',
+                    description: ''
+                },
+
+                // Data contoh dikosongkan
+                items: [],
+
+                get filteredItems() {
+                    return this.items.filter(item => {
+                        if (item.status && item.status !== 'Tervalidasi') return false;
+                        const matchGrade = this.selectedGrade === 'Semua Kelas' || item.grade === this.selectedGrade;
+                        const matchCategory = this.selectedCategory === 'Semua Kategori' || item.category === this.selectedCategory;
+                        const q = this.searchQuery.toLowerCase().trim();
+                        const matchSearch = q === '' || item.title.toLowerCase().includes(q) || item.subject.toLowerCase().includes(q) || item.teacher.toLowerCase().includes(q);
+                        return matchGrade && matchCategory && matchSearch;
+                    });
+                },
+
+                countByGrade(grade) {
+                    if (grade === 'Semua Kelas') return this.items.filter(i => !i.status || i.status === 'Tervalidasi').length;
+                    return this.items.filter(i => i.grade === grade && (!i.status || i.status === 'Tervalidasi')).length;
+                },
+
+                resetFilters() {
+                    this.searchQuery = '';
+                    this.selectedGrade = 'Semua Kelas';
+                    this.selectedCategory = 'Semua Kategori';
+                },
+
+                showToast(msg) {
+                    this.toastMessage = msg;
+                    setTimeout(() => { this.toastMessage = ''; }, 4000);
+                },
+
+                addSubject() {
+                    const name = this.newSubjectName.trim();
+                    if (!name) return;
+                    if (this.subjectsList.includes(name)) {
+                        alert('Mata pelajaran sudah ada!');
+                        return;
+                    }
+                    this.subjectsList.push(name);
+                    this.saveToStorage();
+                    this.newSubjectName = '';
+                    this.showToast(`Mata pelajaran "${name}" berhasil ditambahkan.`);
+                },
+
+                removeSubject(subj) {
+                    if (confirm(`Hapus mata pelajaran "${subj}" dari daftar?`)) {
+                        this.subjectsList = this.subjectsList.filter(s => s !== subj);
+                        this.saveToStorage();
+                        this.showToast(`Mata pelajaran "${subj}" dihapus.`);
+                    }
+                },
+
+                toggleStatus(item) {
+                    item.status = item.status === 'Tervalidasi' ? 'Menunggu Review' : 'Tervalidasi';
+                    this.saveToStorage();
+                    this.showToast(`Status perangkat diubah menjadi: ${item.status}`);
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                exportToExcel() {
+                    if (this.items.length === 0) {
+                        alert('Tidak ada data untuk diekspor.');
+                        return;
+                    }
+                    const excelData = this.items.map((item, index) => ({
+                        'No': index + 1,
+                        'Mata Pelajaran': item.subject || '',
+                        'Jenjang / Fase': item.grade || '',
+                        'Kategori Perangkat': item.category || '',
+                        'Judul Perangkat': item.title || '',
+                        'Nama Guru Penyusun': item.teacher || '',
+                        'Status Verifikasi': item.status || 'Tervalidasi',
+                        'Tautan File': item.fileUrl || '',
+                        'Deskripsi': item.description || ''
+                    }));
+                    const worksheet = XLSX.utils.json_to_sheet(excelData);
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Perangkat SMAN 37");
+                    XLSX.writeFile(workbook, "Rekap_Perangkat_Ajar_SMAN37_Malteng.xlsx");
+                    this.showToast('Data berhasil diekspor ke file Excel (.xlsx)!');
+                },
+
+                async fetchFromSheets() {
+                    if (!APPS_SCRIPT_URL) return;
+                    this.isSyncing = true;
+                    try {
+                        const response = await fetch(APPS_SCRIPT_URL);
+                        const result = await response.json();
+                        if (result.status === 'success' && result.data.length > 0) {
+                            this.items = result.data.map(i => ({ ...i, status: i.status || 'Tervalidasi' }));
+                            this.isConnectedToSheets = true;
+                        }
+                    } catch (e) {
+                        console.error('Gagal mengambil data dari Google Sheets:', e);
+                        this.isConnectedToSheets = false;
+                    } finally {
+                        this.isSyncing = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                async submitUploadForm() {
+                    this.isSubmitting = true;
+                    try {
+                        await fetch(APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.form)
+                        });
+
+                        const newItem = {
+                            id: Date.now(),
+                            ...this.form,
+                            updatedAt: 'Baru saja',
+                            status: 'Menunggu Review'
+                        };
+                        this.items.unshift(newItem);
+                        this.saveToStorage();
+
+                        this.showToast('Perangkat berhasil dikirim! Masuk ke Panel Admin untuk diverifikasi.');
+                        this.openUploadModal = false;
+                        this.form = { teacher: '', subject: '', grade: 'Kelas X (Fase E)', category: 'Modul Ajar / RPP', title: '', fileUrl: '', description: '' };
+                    } catch (e) {
+                        this.showToast('Gagal mengirim data.');
+                    } finally {
+                        this.isSubmitting = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                handleAdminLogin() {
+                    if (this.loginForm.username === 'admin' && this.loginForm.password === 'admin123') {
+                        this.isAdminLoggedIn = true;
+                        this.openLoginModal = false;
+                        this.openAdminDashboard = true;
+                        this.loginForm = { username: '', password: '' };
+                        this.showToast('Login Admin Berhasil!');
+                    } else {
+                        alert('Username atau Password salah!');
+                    }
+                },
+
+                logoutAdmin() {
+                    this.isAdminLoggedIn = false;
+                    this.openAdminDashboard = false;
+                    this.showToast('Berhasil keluar dari mode Admin.');
+                },
+
+                deleteItem(id) {
+                    if (confirm('Hapus perangkat ini?')) {
+                        this.items = this.items.filter(i => i.id !== id);
+                        this.saveToStorage();
+                        this.showToast('Perangkat dihapus dari sistem.');
+                    }
+                },
+
+                saveToStorage() {
+                    localStorage.setItem('sman37_catalog_items', JSON.stringify(this.items));
+                    localStorage.setItem('sman37_subjects_list', JSON.stringify(this.subjectsList));
+                },
+
+                async init() {
+                    const savedItems = localStorage.getItem('sman37_catalog_items');
+                    if (savedItems) {
+                        try { this.items = JSON.parse(savedItems); } catch(e) {}
+                    }
+                    const savedSubjects = localStorage.getItem('sman37_subjects_list');
+                    if (savedSubjects) {
+                        try { this.subjectsList = JSON.parse(savedSubjects); } catch(e) {}
+                    }
+                    await this.fetchFromSheets();
+                    this.$nextTick(() => lucide.createIcons());
+                    this.$watch('filteredItems', () => this.$nextTick(() => lucide.createIcons()));
+                    this.$watch('openAdminDashboard', () => this.$nextTick(() => lucide.createIcons()));
+                }
+            }
+        }
+    </script>
+</body>
+</html>
